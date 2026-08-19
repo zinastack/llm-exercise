@@ -38,6 +38,12 @@ help:
 	@echo "    make report         bench/out/*.json -> RESULTS.md"
 	@echo "    make down           stop everything on the box"
 	@echo ""
+	@echo "  LOAD TEST ANY ENDPOINT  (laptop, no GPU needed - pip install aiohttp)"
+	@echo "    make ping     KEY=sk-...   is it up, and what is it serving?"
+	@echo "    make loadtest KEY=sk-...   run the report's harness against it"
+	@echo "      URL=$(URL)"
+	@echo "      LEVELS=$(LEVELS)  PROMPT=$(PROMPT)  OUTPUT=$(OUTPUT)"
+	@echo ""
 	@source ./scripts/configs.sh 2>/dev/null && echo "  levels: $$(config_names | tr '\n' ' ')" || true
 	@echo ""
 
@@ -207,3 +213,45 @@ report:
 down:
 	-docker rm -f vllm
 	./scripts/stack.sh down
+
+# ─────────────────────── load test any endpoint ───────────────────────────
+# Same harness that produced RESULTS.md, pointed wherever you like. Runs from
+# a laptop - no GPU box, no docker, nothing from the sections above.
+#
+#   pip install aiohttp
+#   make ping     KEY=sk-...
+#   make loadtest KEY=sk-...
+#
+# Override anything:
+#   make loadtest KEY=sk-... LEVELS=256:512 PROMPT=2048 OUTPUT=512
+.PHONY: ping loadtest
+
+URL     ?= https://llm.zinalacina.com/v1
+KEY     ?= $(API_KEY)
+MODEL   ?= target
+# concurrency:requests pairs. matches what the report ran.
+LEVELS  ?= 4:64,64:256
+PROMPT  ?= 512
+OUTPUT  ?= 256
+RESULT  ?= bench/out/loadtest.json
+
+# cheap reachability check first - a failed load test that was really a bad
+# key or a dead tunnel wastes a lot of time before it says so.
+ping:
+	@test -n "$(KEY)" || { echo "usage: make ping KEY=<api key>   (or export API_KEY)"; exit 1; }
+	@curl -fsS --max-time 20 $(URL)/models -H "Authorization: Bearer $(KEY)" \
+	  | python3 -c "import json,sys; [print('  serving:',m['id']) for m in json.load(sys.stdin)['data']]" \
+	  || { echo "  $(URL) not reachable, or the key was rejected"; exit 1; }
+
+loadtest: ping
+	@python3 -c "import aiohttp" 2>/dev/null || { echo "pip install aiohttp"; exit 1; }
+	@echo "==> $(LEVELS) against $(URL)  ($(PROMPT) in / $(OUTPUT) out)"
+	@echo "    tail percentiles include your own network path - compare shapes,"
+	@echo "    not absolute TTFT, against numbers taken on the box."
+	python3 bench/benchmark.py \
+	  --base-url $(URL) --api-key $(KEY) --model $(MODEL) \
+	  --config-name loadtest \
+	  --levels "$(LEVELS)" \
+	  --prompt-tokens $(PROMPT) --max-tokens $(OUTPUT) \
+	  --out $(RESULT)
+	@echo "==> $(RESULT)"
