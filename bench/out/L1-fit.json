@@ -1,0 +1,56 @@
+{
+  "config": "L1-fit",
+  "model": "hugging-quants/Meta-Llama-3.1-70B-Instruct-AWQ-INT4",
+  "flags": "--max-model-len 8192 --gpu-memory-utilization 0.95",
+  "extra_env": "",
+  "rationale": "Stop reserving context nobody uses, and claim the last 5% of HBM. Throughput up because the batch ceiling rises; TTFT down because requests stop queueing for cache blocks.",
+  "workload": {
+    "prompt_tokens": 512,
+    "max_tokens": 256
+  },
+  "startup": "ok",
+  "levels": [
+    {
+      "concurrency": 4,
+      "requests": 64,
+      "succeeded": 64,
+      "failed": 0,
+      "failure_reasons": {},
+      "wall_seconds": 83.78,
+      "output_tokens": 15950,
+      "output_tok_per_s": 190.4,
+      "ttft_ms": {
+        "p50": 202.0,
+        "p90": 498.2,
+        "p95": 524.0,
+        "p99": 654.6,
+        "max": 655.0
+      },
+      "tpot_ms": {
+        "p50": 19.81,
+        "p99": 20.64
+      }
+    },
+    {
+      "concurrency": 64,
+      "requests": 256,
+      "succeeded": 256,
+      "failed": 0,
+      "failure_reasons": {},
+      "wall_seconds": 73.29,
+      "output_tokens": 64681,
+      "output_tok_per_s": 882.5,
+      "ttft_ms": {
+        "p50": 1691.3,
+        "p90": 4665.8,
+        "p95": 6784.4,
+        "p99": 8381.9,
+        "max": 8383.4
+      },
+      "tpot_ms": {
+        "p50": 72.2,
+        "p99": 82.92
+      }
+    }
+  ]
+}

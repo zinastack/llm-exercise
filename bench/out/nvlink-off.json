@@ -1,0 +1,56 @@
+{
+  "config": "nvlink-off",
+  "model": "hugging-quants/Meta-Llama-3.1-70B-Instruct-AWQ-INT4",
+  "flags": "--max-model-len 8192 --gpu-memory-utilization 0.95 --kv-cache-dtype fp8_e5m2 --enable-chunked-prefill --enable-prefix-caching --max-num-seqs 256 --max-num-batched-tokens 8192",
+  "extra_env": "NCCL_P2P_DISABLE=1",
+  "rationale": "Control for the NVLink question. Byte-identical to L3 except NCCL is forced to stage through host memory.",
+  "workload": {
+    "prompt_tokens": 512,
+    "max_tokens": 256
+  },
+  "startup": "ok",
+  "levels": [
+    {
+      "concurrency": 4,
+      "requests": 64,
+      "succeeded": 64,
+      "failed": 0,
+      "failure_reasons": {},
+      "wall_seconds": 87.19,
+      "output_tokens": 15865,
+      "output_tok_per_s": 182.0,
+      "ttft_ms": {
+        "p50": 208.9,
+        "p90": 892.2,
+        "p95": 1022.0,
+        "p99": 1023.2,
+        "max": 1024.0
+      },
+      "tpot_ms": {
+        "p50": 20.44,
+        "p99": 22.13
+      }
+    },
+    {
+      "concurrency": 64,
+      "requests": 256,
+      "succeeded": 256,
+      "failed": 0,
+      "failure_reasons": {},
+      "wall_seconds": 89.55,
+      "output_tokens": 64551,
+      "output_tok_per_s": 720.8,
+      "ttft_ms": {
+        "p50": 2585.4,
+        "p90": 11277.1,
+        "p95": 11284.0,
+        "p99": 13795.0,
+        "max": 13795.8
+      },
+      "tpot_ms": {
+        "p50": 68.82,
+        "p99": 108.36
+      }
+    }
+  ]
+}

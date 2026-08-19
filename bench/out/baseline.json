@@ -1,0 +1,56 @@
+{
+  "config": "baseline",
+  "model": "hugging-quants/Meta-Llama-3.1-70B-Instruct-AWQ-INT4",
+  "flags": "",
+  "extra_env": "",
+  "rationale": "vLLM defaults. The 128K default context window caps how many sequences fit, regardless of available KV memory.",
+  "workload": {
+    "prompt_tokens": 512,
+    "max_tokens": 256
+  },
+  "startup": "ok",
+  "levels": [
+    {
+      "concurrency": 4,
+      "requests": 64,
+      "succeeded": 64,
+      "failed": 0,
+      "failure_reasons": {},
+      "wall_seconds": 84.06,
+      "output_tokens": 15934,
+      "output_tok_per_s": 189.6,
+      "ttft_ms": {
+        "p50": 202.1,
+        "p90": 500.0,
+        "p95": 527.5,
+        "p99": 654.2,
+        "max": 654.6
+      },
+      "tpot_ms": {
+        "p50": 19.87,
+        "p99": 20.72
+      }
+    },
+    {
+      "concurrency": 64,
+      "requests": 256,
+      "succeeded": 256,
+      "failed": 0,
+      "failure_reasons": {},
+      "wall_seconds": 73.46,
+      "output_tokens": 64621,
+      "output_tok_per_s": 879.6,
+      "ttft_ms": {
+        "p50": 1234.3,
+        "p90": 4258.6,
+        "p95": 6776.5,
+        "p99": 8222.9,
+        "max": 8225.4
+      },
+      "tpot_ms": {
+        "p50": 73.14,
+        "p99": 83.22
+      }
+    }
+  ]
+}

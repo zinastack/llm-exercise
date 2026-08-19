@@ -1,0 +1,56 @@
+{
+  "config": "L3-schedule",
+  "model": "hugging-quants/Meta-Llama-3.1-70B-Instruct-AWQ-INT4",
+  "flags": "--max-model-len 8192 --gpu-memory-utilization 0.95 --kv-cache-dtype fp8_e5m2 --enable-chunked-prefill --enable-prefix-caching --max-num-seqs 256 --max-num-batched-tokens 8192",
+  "extra_env": "",
+  "rationale": "Chunked prefill stops long prefills blocking decode, so the TTFT tail collapses. Prefix caching removes prefill work outright, which returns capacity to decode.",
+  "workload": {
+    "prompt_tokens": 512,
+    "max_tokens": 256
+  },
+  "startup": "ok",
+  "levels": [
+    {
+      "concurrency": 4,
+      "requests": 64,
+      "succeeded": 64,
+      "failed": 0,
+      "failure_reasons": {},
+      "wall_seconds": 85.49,
+      "output_tokens": 15871,
+      "output_tok_per_s": 185.7,
+      "ttft_ms": {
+        "p50": 208.4,
+        "p90": 360.5,
+        "p95": 532.5,
+        "p99": 664.2,
+        "max": 664.6
+      },
+      "tpot_ms": {
+        "p50": 20.41,
+        "p99": 21.21
+      }
+    },
+    {
+      "concurrency": 64,
+      "requests": 256,
+      "succeeded": 256,
+      "failed": 0,
+      "failure_reasons": {},
+      "wall_seconds": 71.43,
+      "output_tokens": 64783,
+      "output_tok_per_s": 907.0,
+      "ttft_ms": {
+        "p50": 1933.7,
+        "p90": 6798.0,
+        "p95": 7512.6,
+        "p99": 7516.9,
+        "max": 7743.5
+      },
+      "tpot_ms": {
+        "p50": 55.46,
+        "p99": 80.39
+      }
+    }
+  ]
+}
