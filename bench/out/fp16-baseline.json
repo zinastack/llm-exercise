@@ -1,0 +1,8 @@
+{
+  "config": "fp16-baseline",
+  "model": "meta-llama/Llama-3.1-70B-Instruct",
+  "flags": "",
+  "rationale": "vLLM defaults on the unquantized checkpoint. ~141GB of weights on 160GB leaves under 20GB for KV - roughly 59,000 tokens, and the 128K default context caps reported concurrency at ~2.6x.",
+  "startup": "FAILED",
+  "levels": []
+}

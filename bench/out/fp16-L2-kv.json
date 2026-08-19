@@ -1,0 +1,77 @@
+{
+  "config": "fp16-L2-kv",
+  "model": "meta-llama/Llama-3.1-70B-Instruct",
+  "flags": "--max-model-len 8192 --gpu-memory-utilization 0.95 --kv-cache-dtype fp8_e5m2",
+  "extra_env": "",
+  "rationale": "Halve the bytes per KV token - cache FORMAT, not weights. Roughly doubles resident sequences in the same memory.",
+  "workload": {
+    "prompt_tokens": 512,
+    "max_tokens": 256
+  },
+  "startup": "ok",
+  "levels": [
+    {
+      "concurrency": 4,
+      "requests": 64,
+      "succeeded": 64,
+      "failed": 0,
+      "failure_reasons": {},
+      "wall_seconds": 209.12,
+      "output_tokens": 16272,
+      "output_tok_per_s": 77.8,
+      "ttft_ms": {
+        "p50": 248.3,
+        "p90": 578.2,
+        "p95": 579.5,
+        "p99": 580.1,
+        "max": 580.6
+      },
+      "tpot_ms": {
+        "p50": 50.25,
+        "p99": 50.85
+      }
+    },
+    {
+      "concurrency": 64,
+      "requests": 256,
+      "succeeded": 256,
+      "failed": 0,
+      "failure_reasons": {},
+      "wall_seconds": 87.13,
+      "output_tokens": 64652,
+      "output_tok_per_s": 742.0,
+      "ttft_ms": {
+        "p50": 1255.8,
+        "p90": 3879.7,
+        "p95": 5316.3,
+        "p99": 6416.1,
+        "max": 6684.2
+      },
+      "tpot_ms": {
+        "p50": 84.75,
+        "p99": 94.06
+      }
+    },
+    {
+      "concurrency": 256,
+      "requests": 512,
+      "succeeded": 512,
+      "failed": 0,
+      "failure_reasons": {},
+      "wall_seconds": 155.56,
+      "output_tokens": 129118,
+      "output_tok_per_s": 830.0,
+      "ttft_ms": {
+        "p50": 16244.5,
+        "p90": 34463.3,
+        "p95": 48212.4,
+        "p99": 66640.3,
+        "max": 67271.5
+      },
+      "tpot_ms": {
+        "p50": 206.89,
+        "p99": 347.37
+      }
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "config": "fp16-nvlink-off",
+  "model": "meta-llama/Llama-3.1-70B-Instruct",
+  "flags": "--max-model-len 8192 --gpu-memory-utilization 0.95 --kv-cache-dtype fp8_e5m2 --enable-chunked-prefill --enable-prefix-caching --max-num-seqs 256 --max-num-batched-tokens 8192",
+  "extra_env": "NCCL_P2P_DISABLE=1",
+  "rationale": "Control. Byte-identical to fp16-L3 except NCCL is forced to stage through host memory.",
+  "workload": {
+    "prompt_tokens": 512,
+    "max_tokens": 256
+  },
+  "startup": "ok",
+  "levels": [
+    {
+      "concurrency": 4,
+      "requests": 64,
+      "succeeded": 64,
+      "failed": 0,
+      "failure_reasons": {},
+      "wall_seconds": 210.85,
+      "output_tokens": 16127,
+      "output_tok_per_s": 76.5,
+      "ttft_ms": {
+        "p50": 248.4,
+        "p90": 710.2,
+        "p95": 795.6,
+        "p99": 822.7,
+        "max": 823.2
+      },
+      "tpot_ms": {
+        "p50": 50.42,
+        "p99": 51.96
+      }
+    },
+    {
+      "concurrency": 64,
+      "requests": 256,
+      "succeeded": 256,
+      "failed": 0,
+      "failure_reasons": {},
+      "wall_seconds": 106.58,
+      "output_tokens": 64419,
+      "output_tok_per_s": 604.4,
+      "ttft_ms": {
+        "p50": 4931.8,
+        "p90": 10377.9,
+        "p95": 11517.7,
+        "p99": 12681.6,
+        "max": 12683.2
+      },
+      "tpot_ms": {
+        "p50": 82.48,
+        "p99": 126.28
+      }
+    },
+    {
+      "concurrency": 256,
+      "requests": 512,
+      "succeeded": 512,
+      "failed": 0,
+      "failure_reasons": {},
+      "wall_seconds": 242.85,
+      "output_tokens": 129361,
+      "output_tok_per_s": 532.7,
+      "ttft_ms": {
+        "p50": 34151.1,
+        "p90": 50190.6,
+        "p95": 50215.6,
+        "p99": 50226.7,
+        "max": 50229.6
+      },
+      "tpot_ms": {
+        "p50": 308.61,
+        "p99": 585.54
+      }
+    }
+  ]
+}

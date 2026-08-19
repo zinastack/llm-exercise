@@ -1,0 +1,77 @@
+{
+  "config": "fp16-L3-schedule",
+  "model": "meta-llama/Llama-3.1-70B-Instruct",
+  "flags": "--max-model-len 8192 --gpu-memory-utilization 0.95 --kv-cache-dtype fp8_e5m2 --enable-chunked-prefill --enable-prefix-caching --max-num-seqs 256 --max-num-batched-tokens 8192",
+  "extra_env": "",
+  "rationale": "Interleave prefill with decode so long prefills stop blocking generation, and reuse shared prompt prefixes.",
+  "workload": {
+    "prompt_tokens": 512,
+    "max_tokens": 256
+  },
+  "startup": "ok",
+  "levels": [
+    {
+      "concurrency": 4,
+      "requests": 64,
+      "succeeded": 64,
+      "failed": 0,
+      "failure_reasons": {},
+      "wall_seconds": 209.12,
+      "output_tokens": 16272,
+      "output_tok_per_s": 77.8,
+      "ttft_ms": {
+        "p50": 249.0,
+        "p90": 577.6,
+        "p95": 579.9,
+        "p99": 580.8,
+        "max": 581.1
+      },
+      "tpot_ms": {
+        "p50": 50.23,
+        "p99": 50.85
+      }
+    },
+    {
+      "concurrency": 64,
+      "requests": 256,
+      "succeeded": 256,
+      "failed": 0,
+      "failure_reasons": {},
+      "wall_seconds": 86.58,
+      "output_tokens": 64433,
+      "output_tok_per_s": 744.2,
+      "ttft_ms": {
+        "p50": 1339.5,
+        "p90": 5362.8,
+        "p95": 5413.8,
+        "p99": 6358.6,
+        "max": 6359.1
+      },
+      "tpot_ms": {
+        "p50": 72.9,
+        "p99": 93.74
+      }
+    },
+    {
+      "concurrency": 256,
+      "requests": 512,
+      "succeeded": 512,
+      "failed": 0,
+      "failure_reasons": {},
+      "wall_seconds": 152.3,
+      "output_tokens": 128988,
+      "output_tok_per_s": 846.9,
+      "ttft_ms": {
+        "p50": 14925.3,
+        "p90": 24092.9,
+        "p95": 25587.4,
+        "p99": 31234.2,
+        "max": 32926.8
+      },
+      "tpot_ms": {
+        "p50": 202.72,
+        "p99": 372.78
+      }
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "config": "fp16-L1-fit",
+  "model": "meta-llama/Llama-3.1-70B-Instruct",
+  "flags": "--max-model-len 8192 --gpu-memory-utilization 0.95",
+  "extra_env": "",
+  "rationale": "Cap context to what is actually served and claim the last 5% of HBM. More usable KV, so more sequences resident.",
+  "workload": {
+    "prompt_tokens": 512,
+    "max_tokens": 256
+  },
+  "startup": "ok",
+  "levels": [
+    {
+      "concurrency": 4,
+      "requests": 64,
+      "succeeded": 64,
+      "failed": 0,
+      "failure_reasons": {},
+      "wall_seconds": 204.24,
+      "output_tokens": 15952,
+      "output_tok_per_s": 78.1,
+      "ttft_ms": {
+        "p50": 240.5,
+        "p90": 454.9,
+        "p95": 456.3,
+        "p99": 484.7,
+        "max": 485.0
+      },
+      "tpot_ms": {
+        "p50": 49.53,
+        "p99": 50.28
+      }
+    },
+    {
+      "concurrency": 64,
+      "requests": 256,
+      "succeeded": 256,
+      "failed": 0,
+      "failure_reasons": {},
+      "wall_seconds": 87.54,
+      "output_tokens": 64352,
+      "output_tok_per_s": 735.1,
+      "ttft_ms": {
+        "p50": 1049.8,
+        "p90": 3892.1,
+        "p95": 5337.8,
+        "p99": 6594.0,
+        "max": 6773.8
+      },
+      "tpot_ms": {
+        "p50": 85.92,
+        "p99": 95.01
+      }
+    },
+    {
+      "concurrency": 256,
+      "requests": 512,
+      "succeeded": 512,
+      "failed": 0,
+      "failure_reasons": {},
+      "wall_seconds": 199.87,
+      "output_tokens": 128408,
+      "output_tok_per_s": 642.5,
+      "ttft_ms": {
+        "p50": 47961.5,
+        "p90": 71742.7,
+        "p95": 77385.7,
+        "p99": 80016.2,
+        "max": 80660.6
+      },
+      "tpot_ms": {
+        "p50": 133.97,
+        "p99": 232.09
+      }
+    }
+  ]
+}
