@@ -1,0 +1,119 @@
+# pinned - compose derives this from the directory name, and renaming the
+# project orphans the volumes
+name: observability
+
+# Stays up across every benchmark level so the dashboards can compare them.
+# vllm is NOT here - scripts/run.sh starts one per level so it's unambiguous
+# which flags produced which numbers.
+#
+# compose rather than k8s: single node, short-lived. No control plane to
+# install and nothing here needs scheduling or self-healing.
+#
+# prometheus finds vllm via a file target that run.sh rewrites per level,
+# tagging every series with level=<name>.
+
+networks:
+  exercise:
+    name: exercise-net
+    external: true
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    networks: [exercise]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=30d
+      - --web.enable-lifecycle
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/targets:/etc/prometheus/targets:ro
+      - prom-data:/prometheus
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    networks: [exercise]
+    depends_on: [prometheus]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?set GRAFANA_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_SERVER_ROOT_URL: https://${DASH_HOST:-llm-dash.zinalacina.com}
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+
+  dcgm-exporter:
+    image: nvidia/dcgm-exporter:latest
+    container_name: dcgm-exporter
+    restart: unless-stopped
+    networks: [exercise]
+    cap_add: [SYS_ADMIN]
+    # default counter set has no DCGM_FI_PROF_*, so nvlink and tensor-pipe
+    # panels come up empty with no error anywhere
+    command: ["-f", "/etc/dcgm-exporter/exercise-counters.csv"]
+    volumes:
+      - ./observability/dcgm-counters.csv:/etc/dcgm-exporter/exercise-counters.csv:ro
+    deploy:
+      resources:
+        reservations:
+          devices: [{driver: nvidia, count: all, capabilities: [gpu, utility]}]
+
+  # Outbound-only. No inbound ports, no public IP, works behind any firewall.
+  # strips tools/tool_choice - see specs/004-chat-ui/tasks/v2-tool-injection.md
+  chat-proxy:
+    build: ./proxy
+    container_name: chat-proxy
+    restart: unless-stopped
+    networks: [exercise]
+    environment:
+      UPSTREAM: http://vllm:8000
+
+  # not part of the exercise, but /v1 returns 404 in a browser. handles the
+  # backend going away between levels.
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: unless-stopped
+    networks: [exercise]
+    environment:
+      OPENAI_API_BASE_URL: http://chat-proxy:8010/v1
+      OPENAI_API_KEY: ${API_KEY:?set API_KEY}
+      WEBUI_NAME: "Llama 3.1 70B - 2x A100 NVLink"
+      # each of these is another full request against the 70B per message.
+      # generation is ~50 tok/s; these were the actual wait.
+      ENABLE_TITLE_GENERATION: "false"
+      ENABLE_TAGS_GENERATION: "false"
+      ENABLE_FOLLOW_UP_GENERATION: "false"
+      ENABLE_AUTOCOMPLETE_GENERATION: "false"
+      ENABLE_SEARCH_QUERY_GENERATION: "false"
+      ENABLE_RETRIEVAL_QUERY_GENERATION: "false"
+      ENABLE_WEB_SEARCH: "false"
+
+      ENABLE_RAG_WEB_SEARCH: "false"
+      # first user becomes admin, so signup has to be open until it exists.
+      # make webui-admin does it in the right order.
+      ENABLE_SIGNUP: "${WEBUI_ENABLE_SIGNUP:-true}"
+      WEBUI_AUTH: "true"
+    volumes:
+      - webui-data:/app/backend/data
+
+  # profile public - so a local run doesn't need a tunnel token
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: unless-stopped
+    profiles: [public]
+    networks: [exercise]
+    depends_on: [grafana, open-webui]
+    command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN:-}
+
+volumes:
+  prom-data:
+  grafana-data:
+  webui-data:

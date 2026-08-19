@@ -1,0 +1,21 @@
+# Reference. With a token-based (remote-managed) tunnel these ingress rules are
+# configured in the Cloudflare Zero Trust dashboard; kept here so the routing is
+# documented alongside the code.
+
+ingress:
+  # Grafana - put Cloudflare Access in front of this hostname (one-time PIN to
+  # a named email). Do not rely on Grafana's own login for a public hostname.
+  - hostname: llm-dash.zinalacina.com
+    service: http://grafana:3000
+
+  # Chat UI - what you actually send someone. Has its own login.
+  - hostname: chat.zinalacina.com
+    service: http://open-webui:8080
+
+  # Raw OpenAI-compatible API. Protected by vLLM's --api-key.
+  - hostname: llm.zinalacina.com
+    service: http://vllm:8000
+
+  # Prometheus is deliberately absent. A scrape endpoint is not a public
+  # service, and /metrics leaks more than people expect.
+  - service: http_status:404

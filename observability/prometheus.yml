@@ -1,0 +1,17 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # File-based discovery. run.sh rewrites targets/vllm.json before each level,
+  # stamping level="L2-quantize" etc. onto every series, so all levels can be
+  # compared on one panel.
+  - job_name: vllm
+    metrics_path: /metrics
+    file_sd_configs:
+      - files: [/etc/prometheus/targets/vllm.json]
+        refresh_interval: 5s
+
+  - job_name: dcgm
+    static_configs:
+      - targets: ['dcgm-exporter:9400']
