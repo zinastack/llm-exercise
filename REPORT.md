@@ -29,6 +29,24 @@ curl -N https://llm.zinalacina.com/v1/chat/completions \
        "messages":[{"role":"user","content":"factorial in golang"}]}'
 ```
 
+### Load-testing it yourself
+
+The harness that produced every number below runs from a laptop against any
+endpoint - no GPU, no docker:
+
+```bash
+pip install aiohttp
+make ping     KEY=<api key>          # up? what is it serving?
+make loadtest KEY=<api key>          # 4:64,64:256 - the report's own levels
+make loadtest KEY=<api key> LEVELS=256:512 PROMPT=2048 OUTPUT=512
+```
+
+Two caveats when comparing what you get to the tables below. Your TTFT includes
+the network path to the endpoint, which the on-box measurements do not - compare
+the *shape* across concurrency levels rather than absolute milliseconds. And the
+public endpoint serves the **INT4** build (§5), not the FP16 configuration that
+§4's tuning progression was measured on.
+
 ## Documents
 
 | File | Contents |
@@ -190,12 +208,22 @@ flowchart LR
 ```
 
 **Why there is no certificate on the origin.** TLS terminates at Cloudflare's
-edge and the tunnel itself is encrypted and mutually authenticated. The only
-plaintext hop is `cloudflared → container`, on a Docker bridge on one host, with
-no route off the machine. Putting self-signed certs there would require
-`noTLSVerify: true` - disabled certificate validation protecting a hop that
-cannot be intercepted. This is the same pattern used for the author's existing
-Kubernetes cluster on the same domain.
+edge, and `cloudflared` dials outbound over an encrypted connection authenticated
+by the tunnel credential, so the host exposes no inbound ports at all. Behind
+that, everything on the Docker bridge is plaintext - `cloudflared` to the
+containers, Open WebUI to vLLM, Prometheus to both. vLLM binds to
+`127.0.0.1:8000`, so none of it is reachable off the machine.
+
+Encrypting those hops was available: `cloudflared` takes `caPool` and
+`originServerName`, so an internal CA would work without disabling verification.
+I skipped it because this is a single host that exists for the length of a
+benchmark - no traffic crosses a network boundary, and a CA is not worth
+distributing to a machine that gets destroyed.
+
+For anything persistent I do the opposite. My long-lived cluster on this domain
+terminates TLS at the origin - cert-manager holds a Let's Encrypt wildcard issued
+over DNS-01 and Traefik serves it - because there traffic crosses nodes and the
+certificate has to outlive any single machine.
 
 ### Observability path
 
@@ -251,8 +279,8 @@ answer different questions and the pairing is what makes a result interpretable:
 |---|---|
 | How much work is leaving the system? | `vllm:generation_tokens_total` rate |
 | How long until a user sees anything? | `vllm:time_to_first_token_seconds` (p50/p95/p99) |
-| How fast do tokens follow? | `vllm:time_per_output_token_seconds` |
-| Are we out of KV cache? | `vllm:gpu_cache_usage_perc` |
+| How fast do tokens follow? | `vllm:inter_token_latency_seconds` |
+| Are we out of KV cache? | `vllm:kv_cache_usage_perc` |
 | Are we thrashing? | `vllm:num_preemptions_total` |
 | Is the GPU *busy*? | `DCGM_FI_DEV_GPU_UTIL` |
 | Is the GPU *productive*? | **`DCGM_FI_PROF_PIPE_TENSOR_ACTIVE`** |
@@ -276,12 +304,13 @@ docker run --gpus all --ipc=host --shm-size=16g \
   --tensor-parallel-size 2 --host 0.0.0.0 --port 8000
 ```
 
-**What vLLM decides on its own** - captured per run in
-`bench/out/<level>.startup.txt`, and the most informative output of the whole
-exercise:
+Every run captures what vLLM decides for itself - KV cache size and reported
+maximum concurrency - into `bench/out/<level>.startup.txt`. Those two lines are
+the most informative output of the whole exercise, because they show the engine's
+own accounting rather than an inference drawn from throughput.
 
-**On this hardware, at defaults, it does not get that far.** vLLM refuses to
-start:
+**On this hardware, at defaults, it never gets far enough to print them.** vLLM
+refuses to start:
 
 ```
 ValueError: To serve at least one request with the model's max seq len (131072),
@@ -550,11 +579,12 @@ A100s exactly.
 
 ## 7 · What did not work, and why that is the useful result
 
-The first benchmark round showed almost no improvement across every level:
+The first benchmark round - run on the **INT4 stack**, which starts at defaults
+where FP16 does not - showed almost no improvement across every level:
 
 ```
-baseline      c=64   879.6 tok/s
-L3-schedule   c=64   907.0 tok/s      ← 3% after every lever
+INT4 baseline      c=64   879.6 tok/s
+INT4 L3-schedule   c=64   907.0 tok/s      ← 3% after every lever
 ```
 
 **The tuning was not wrong; the constraint was not binding.** With 512-token
@@ -563,12 +593,14 @@ baseline cache held ~347,000 - around 450 concurrent requests' worth. At
 concurrency 64 the system was **nowhere near KV-limited**, so every KV-oriented
 lever had nothing to bite on.
 
-The diagnostic that revealed it was pairing `gpu_cache_usage_perc` with
+The diagnostic that revealed it was pairing `kv_cache_usage_perc` with
 `num_preemptions_total`: cache utilisation was low and preemptions were zero.
 A system that is not evicting anything is not short of cache.
 
-**The response was to change the workload, not the flags** - adding concurrency
-256 so the levers act on a genuinely constrained system.
+**The response was to add a concurrency level, not to change the flags or the
+request shape** - concurrency 256, with the same 512-token prompts and 256-token
+outputs as every earlier run, so the levers act on a genuinely constrained system
+while the earlier numbers stay comparable.
 
 The generalisable point, and the one worth saying to a customer: **measure where
 the bottleneck is before choosing a lever.** Tuning KV headroom on a system that
@@ -602,9 +634,10 @@ the FP8 cache format are what make the concurrency possible at all.
 
 **If output quality tolerates it, serve INT4 instead.** It is worth +22%
 throughput and −24% TPOT on identical hardware, and it removes the need for
-tensor parallelism entirely - the model fits on one GPU. That is a
-roughly 7× reduction in serving cost, and it is a quality decision rather than a
-performance one.
+tensor parallelism entirely - the model fits on one GPU. Half the devices at
++22% throughput is roughly **2.4× the output tokens per GPU**, and the KV
+headroom grows 6.7×. That makes it a quality decision rather than a performance
+one: the performance case is already settled.
 
 **When I would configure it differently:**
 
