@@ -12,46 +12,12 @@ time-to-first-token through deployment configuration alone.
 > by hand.** `RESULTS.md` is produced by `bench/report.py`; delete it and
 > regenerate and it reproduces exactly.
 
-## Live endpoints
-
-| | URL |
-|---|---|
-| **Chat UI** | **https://chat.zinalacina.com** |
-| OpenAI-compatible API | `https://llm.zinalacina.com/v1` - bearer token |
-| Grafana - all levels on shared panels | https://llm-dash.zinalacina.com |
-
-The API accepts any OpenAI client:
-
-```bash
-curl -N https://llm.zinalacina.com/v1/chat/completions \
-  -H "Authorization: Bearer $API_KEY" -H 'Content-Type: application/json' \
-  -d '{"model":"target","stream":true,
-       "messages":[{"role":"user","content":"factorial in golang"}]}'
-```
-
-### Load-testing it yourself
-
-The harness that produced every number below runs from a laptop against any
-endpoint - no GPU, no docker:
-
-```bash
-pip install aiohttp
-make ping     KEY=<api key>          # up? what is it serving?
-make loadtest KEY=<api key>          # 4:64,64:256 - the report's own levels
-make loadtest KEY=<api key> LEVELS=256:512 PROMPT=2048 OUTPUT=512
-```
-
-Two caveats when comparing what you get to the tables below. Your TTFT includes
-the network path to the endpoint, which the on-box measurements do not - compare
-the *shape* across concurrency levels rather than absolute milliseconds. And the
-public endpoint serves the **INT4** build (§5), not the FP16 configuration that
-§4's tuning progression was measured on.
-
 ## Documents
 
 | File | Contents |
 |---|---|
 | **This file** | **The deliverable - read first** |
+| [`offline.md`](offline.md) | **The public endpoints are offline** - how to replay the dashboards and results without them |
 | [`README.md`](README.md) | Step-by-step to reproduce on your own hardware |
 | [`RESULTS.md`](RESULTS.md) | Generated results table, every level and concurrency |
 | [`docs/DELIVERABLES.md`](docs/DELIVERABLES.md) | Requirement-by-requirement map |
@@ -362,7 +328,7 @@ weights are modified, no training occurs.
 `gpu-memory-utilization` claims the last slice of HBM vLLM leaves free by
 default. Both convert directly into resident sequences.
 
-**Expected on the GPU panels:** `gpu_cache_usage_perc` rises without
+**Expected on the GPU panels:** `kv_cache_usage_perc` rises without
 `num_preemptions_total` rising - more sequences resident, not more thrashing.
 
 

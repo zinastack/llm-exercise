@@ -88,7 +88,8 @@ each linking to its detailed section.
 
 Stated separately rather than folded in:
 
-- **Chat UI** at `chat.zinalacina.com` - the API returns 404 in a browser
+- **Chat UI** at `chat.zinalacina.com` - the API returns 404 in a browser.
+  Offline now; the host was released after the benchmark rather than left idle
 - **Grafana** with every level on shared panels, paired with GPU telemetry
 - **`archive/`** - the Prometheus database survives teardown of an ephemeral host
 - **[`REPORT.md` §8b, §8c](../REPORT.md)** - where this design stops working, and

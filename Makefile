@@ -38,11 +38,12 @@ help:
 	@echo "    make report         bench/out/*.json -> RESULTS.md"
 	@echo "    make down           stop everything on the box"
 	@echo ""
-	@echo "  LOAD TEST ANY ENDPOINT  (laptop, no GPU needed - pip install aiohttp)"
-	@echo "    make ping     KEY=sk-...   is it up, and what is it serving?"
-	@echo "    make loadtest KEY=sk-...   run the report's harness against it"
+	@echo "  LOAD TEST AN ENDPOINT  (pip install aiohttp)"
+	@echo "    make ping         is it up, and what is it serving?"
+	@echo "    make loadtest     run the report's harness against it"
 	@echo "      URL=$(URL)"
 	@echo "      LEVELS=$(LEVELS)  PROMPT=$(PROMPT)  OUTPUT=$(OUTPUT)"
+	@echo "    the exercise's public hostnames are offline - point URL= at your own"
 	@echo ""
 	@source ./scripts/configs.sh 2>/dev/null && echo "  levels: $$(config_names | tr '\n' ' ')" || true
 	@echo ""
@@ -215,18 +216,20 @@ down:
 	./scripts/stack.sh down
 
 # ─────────────────────── load test any endpoint ───────────────────────────
-# Same harness that produced RESULTS.md, pointed wherever you like. Runs from
-# a laptop - no GPU box, no docker, nothing from the sections above.
+# Same harness that produced RESULTS.md, pointed wherever you like.
+#
+# NB the public hostnames from the exercise are OFFLINE - the rented GPU host
+# was released after the benchmark. Defaults to a local vllm, so bring one up
+# (see README) or pass URL= for something remote.
 #
 #   pip install aiohttp
-#   make ping     KEY=sk-...
-#   make loadtest KEY=sk-...
-#
-# Override anything:
-#   make loadtest KEY=sk-... LEVELS=256:512 PROMPT=2048 OUTPUT=512
+#   make ping
+#   make loadtest
+#   make loadtest LEVELS=256:512 PROMPT=2048 OUTPUT=512
+#   make loadtest URL=https://your-endpoint/v1 KEY=sk-...
 .PHONY: ping loadtest
 
-URL     ?= https://llm.zinalacina.com/v1
+URL     ?= http://localhost:8000/v1
 KEY     ?= $(API_KEY)
 MODEL   ?= target
 # concurrency:requests pairs. matches what the report ran.
