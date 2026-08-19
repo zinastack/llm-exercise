@@ -1,0 +1,138 @@
+# AI usage
+
+I organised this repository and used **Claude Code** to speed up writing the
+scripts and code. This file explains how, so you can judge the work rather than
+guess at it - and so another engineer, or another LLM, can pick it up and
+continue without reading a chat transcript.
+
+---
+
+## Why this file exists
+
+Everyone uses these tools now. The interesting question is no longer *whether*,
+but **whether the work stands up when you look at how it was produced.**
+
+So the constraints are committed, not described. You can read the permission
+boundaries, the guardrails and the specification history the same way you read
+the code.
+
+---
+
+## The structure
+
+```
+CLAUDE.md                 working agreement - read first
+ai-usage.md               this file
+.claude/
+  settings.json           tool permissions: 23 allow · 10 ask · 13 deny
+  rules/                  modular guardrails, one concern per file
+  commands/               slash-commands, all wrapping make targets
+specs/
+  README.md               how features are tracked
+  NNN-feature/
+    spec.md               WHAT and WHY - no implementation detail
+    plan.md               HOW - mechanisms, costs, risks
+    tasks/                WHAT HAPPENED - one file per version, never edited
+      v0-....md
+      v1-....md
+```
+
+**Every feature has that identical shape.** `tasks/` is a folder rather than a
+file so superseded reasoning survives: `v0` is never rewritten when `v1` lands,
+which is how the record keeps the mistakes that turned out to matter.
+
+### `.claude/settings.json` - boundaries that actually bind
+
+| | Examples |
+|---|---|
+| **Denied outright** | `make destroy`, `brev delete`, `rm -rf`, `docker volume rm`, `git push --force`, reading `.env` or `*.pem` |
+| **Requires asking** | provisioning, running benchmarks, committing, creating repositories |
+| **Auto-approved** | reading, editing docs and scripts, syntax checks, read-only `make` targets |
+
+The denials are why teardown was **proposed** and never executed - destroying an
+instance is a human decision, and so is deleting a volume.
+
+### `.claude/rules/` - one concern per file
+
+| File | Enforces |
+|---|---|
+| `.claude/rules/00-resources-and-destruction.md` | Archive before teardown. Validate at small scale first. Confirm anything irreversible |
+| `.claude/rules/10-measurement-integrity.md` | Never hand-type a number. **A failed run is a result.** Report tails, not means. When data contradicts documentation, change the documentation |
+| `.claude/rules/20-secrets.md` | `.env` never read, tokens never printed - report *capability* (`content=403`), never the credential |
+| `.claude/rules/30-reproducibility.md` | Pin images by digest. Record configuration inside the result file |
+| `.claude/rules/40-scope.md` | Configuration changes only. Never silently expand or narrow what was asked |
+
+### `.claude/commands/` - workflow as slash-commands
+
+`/spec` → `/plan` → `/tasks` enforce order: no plan before an agreed spec, no
+tasks before an agreed plan. `/deploy-inference`, `/bench` and `/teardown` wrap
+`make` targets - **never raw `docker` or `ssh`**, so anything an agent can do, a
+human can do identically by reading the `Makefile`.
+
+---
+
+## What I used it for, and what I didn't
+
+| Used for | Retained by me |
+|---|---|
+| Writing the harness, report generator and stack from my design | What is measured, and what counts as a valid result |
+| Executing diagnostics I directed | The diagnosis, and which hypothesis to test next |
+| Drafting prose from measured output | Every engineering decision and trade-off |
+| Producing candidate tuning levels against my criteria | Which levels are in scope, and why |
+
+### Decisions I made against the tool's proposal
+
+Recorded because it is the part that shows judgement:
+
+**Scope.** The first design made INT4 quantization a *tuning level*. The exercise
+says weights must not be modified. I rejected it; the progression was rebuilt as
+configuration-only, with quantization reported separately and its caveat
+attached. → `specs/001-llm-serving/spec.md`, decision **D2**
+
+**Hardware.** An instance type was proposed on availability. Its disk is fixed at
+128 GB against 141 GB of FP16 weights, so it could not hold the model at all -
+capacity is the constraint that decides.
+→ `specs/001-llm-serving/tasks/v0-provisioning.md`
+
+**Workload.** The first benchmark round showed 3% improvement. Rather than
+accept it, I pushed on why - the constraint was not binding at that concurrency.
+Adding concurrency 256 revealed a 32% improvement and a 3× TTFT gain.
+→ `specs/001-llm-serving/tasks/v1-int4-benchmark.md`
+
+**Structure.** The stack lived under `observability/`. It is the artefact and
+belongs at the root - a move that turned out to risk orphaning the Prometheus
+volume. → `specs/000-docker-compose/tasks/v2-docker-compose.md`
+
+---
+
+## How to verify none of this is decoration
+
+- **Every number traces to a file.** `RESULTS.md` is generated by
+  `bench/report.py` from `bench/out/*.json`. Delete it and regenerate; it
+  reproduces.
+- **Failures are recorded, not smoothed.** `specs/001-llm-serving/tasks/v0-provisioning.md`
+  lists the SSH failure, the disk-flag mistake, the removed vLLM flag and the
+  mis-scoped Hugging Face token in place.
+- **A prediction was written before its measurement.** `plan.md` stated chunked
+  prefill should improve p99 far more than p50. Measured: p99 improved 53%, p50
+  improved 8%.
+- **A prediction that failed was corrected, not deleted.** The original
+  documentation claimed every level would improve both metrics. One did not, and
+  the document was rewritten to match the data.
+
+---
+
+## Picking this up
+
+```bash
+cat CLAUDE.md                    # the working agreement
+cat specs/README.md              # how features are tracked
+cat specs/001-llm-serving/spec.md
+ls  specs/001-llm-serving/tasks/   # v0 → v1 → v2
+make help                        # every operation
+```
+
+To add a feature: `/spec 005-name` → review → `/plan 005-name` → review →
+`/tasks 005-name`. The spec says what and why, never how. The plan states a
+**mechanism** for each change - a change without one is a guess, and guesses do
+not become tuning levels.

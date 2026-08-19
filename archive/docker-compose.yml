@@ -1,0 +1,31 @@
+# Replay the exercise's observability offline, after the GPU box is destroyed.
+#
+#   mkdir -p prom-data && tar xzf prometheus-data.tgz -C prom-data
+#   docker compose up -d      →  http://localhost:3000  (admin / admin)
+#
+# Grafana starts empty and provisions its datasource and dashboards from
+# observability/grafana/, so no Grafana state needs shipping.
+#
+# Every tuning level is still labelled, so the comparison panels work exactly
+# as they did live. This is why destroying the GPU instance costs nothing.
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    command: [--config.file=/etc/prometheus/prometheus.yml, --storage.tsdb.retention.time=10y]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prom-data:/prometheus
+    ports: ["9090:9090"]
+
+  grafana:
+    image: grafana/grafana:latest
+    depends_on: [prometheus]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ../observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports: ["3000:3000"]
