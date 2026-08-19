@@ -82,25 +82,36 @@ docker run -d --name "$CONTAINER" $RESTART \
     # logging skews things at c=64. do NOT disable log-stats, prometheus
     # needs it.
 
+# a config that won't start is a result, so it gets the same artefacts as one
+# that does: the logs on disk and a json next to the others. the reason only
+# exists in these logs, so keep a long tail rather than a summary.
+record_failure() {
+  local why="$1"
+  docker logs --tail 200 "$CONTAINER" > "$OUT/${NAME}.startup.txt" 2>&1 || true
+  tail -20 "$OUT/${NAME}.startup.txt" || true
+  local err
+  err=$(grep -Ei 'error|exception|cannot|larger than|out of memory' \
+          "$OUT/${NAME}.startup.txt" | tail -3 | tr -s '\n' ' ')
+  python3 - "$NAME" "$MODEL" "$flags" "$rationale" "$why" "$err" <<'PY'
+import json, sys, pathlib
+n, m, f, r, why, err = sys.argv[1:7]
+pathlib.Path("bench/out").mkdir(parents=True, exist_ok=True)
+p = pathlib.Path("bench/out")/f"{n}.json"
+p.write_text(json.dumps({"config": n, "model": m, "flags": f, "rationale": r,
+                         "startup": "FAILED", "failure": why,
+                         "error": err.strip(), "levels": []}, indent=2))
+print(f"recorded startup failure to {p}")
+PY
+}
+
 echo -n "starting"
 deadline=$(( SECONDS + 2400 ))
 until curl -fsS -o /dev/null http://localhost:8000/health 2>/dev/null; do
   if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER}$"; then
-    echo " FAILED"; docker logs --tail 60 "$CONTAINER" 2>&1 || true
-    # record it - the baseline not starting IS the part 1 result
-    python3 - "$NAME" "$MODEL" "$flags" "$rationale" <<'PY'
-import json, sys, pathlib
-n, m, f, r = sys.argv[1:5]
-pathlib.Path("bench/out").mkdir(parents=True, exist_ok=True)
-p = pathlib.Path("bench/out")/f"{n}.json"
-p.write_text(json.dumps({"config": n, "model": m, "flags": f, "rationale": r,
-                         "startup": "FAILED", "levels": []}, indent=2))
-print(f"recorded startup failure to {p}")
-PY
-    exit 1
+    echo " FAILED"; record_failure exited; exit 1
   fi
   printf '.'; sleep 15
-  (( SECONDS < deadline )) || { echo " TIMEOUT"; docker logs --tail 60 "$CONTAINER"; exit 1; }
+  (( SECONDS < deadline )) || { echo " TIMEOUT"; record_failure timeout; exit 1; }
 done
 echo " healthy"
 
