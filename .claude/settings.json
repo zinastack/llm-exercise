@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read(**)",
+      "Edit(**/*.md)", "Edit(**/*.sh)", "Edit(**/*.py)", "Edit(**/*.yml)", "Edit(Makefile)",
+      "Bash(make help:*)", "Bash(make topo:*)", "Bash(make status:*)",
+      "Bash(make cheap:*)", "Bash(make doctor:*)", "Bash(make sync:*)",
+      "Bash(make report:*)", "Bash(make archive:*)",
+      "Bash(git status:*)", "Bash(git diff:*)", "Bash(git log:*)", "Bash(git add:*)",
+      "Bash(python3 -m py_compile:*)", "Bash(bash -n:*)",
+      "Bash(docker compose config:*)", "Bash(docker ps:*)", "Bash(docker logs:*)"
+    ],
+    "ask": [
+      "Bash(make provision:*)",
+      "Bash(make levels:*)", "Bash(make one:*)", "Bash(make nvlink:*)", "Bash(make final:*)",
+      "Bash(brev create:*)", "Bash(brev start:*)",
+      "Bash(git commit:*)", "Bash(git push:*)",
+      "Bash(gh repo create:*)"
+    ],
+    "deny": [
+      "Read(.env)", "Read(**/.env)", "Edit(.env)",
+      "Read(**/*.pem)", "Read(**/credentials.json)",
+      "Bash(make destroy:*)", "Bash(brev delete:*)",
+      "Bash(rm -rf:*)", "Bash(docker volume rm:*)", "Bash(docker system prune:*)",
+      "Bash(git push --force:*)", "Bash(git reset --hard:*)",
+      "Bash(curl:*huggingface.co/settings*)"
+    ]
+  },
+  "env": {
+    "EXERCISE_HOURLY_USD": "12.07",
+    "EXERCISE_INSTANCE": "llm-exercise"
+  }
+}
