@@ -17,3 +17,6 @@ __pycache__/
 archive/grafana-data.tgz
 archive/prom-data/
 archive/grafana-data/
+
+# local operational tooling, not part of the deliverable
+Makefile.up

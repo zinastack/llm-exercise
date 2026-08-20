@@ -130,7 +130,7 @@ The vLLM image is **pinned by digest** in `.env.example`. Leave it pinned -
 make weights
 ```
 
-Downloads ~141 GB (FP16) and ~35 GB (INT4 AWQ). Uses `hf_transfer`, which is
+Downloads 141 GB (FP16) and 39.8 GB (INT4 AWQ). Uses `hf_transfer`, which is
 several times faster than the default client.
 
 ---

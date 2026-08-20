@@ -55,7 +55,7 @@ and KV cache compete for the same HBM:
 | | Weights | KV headroom |
 |---|---|---|
 | FP16 | ~140 GB | ~20 GB |
-| **INT4 AWQ** | **~35 GB** | **~125 GB** |
+| **INT4 AWQ** | **39.8 GB** | **~116 GB** |
 
 Roughly **six times the KV headroom**, which translates almost directly into
 concurrent sequences. Throughput in a decode-bound regime is set by how many
@@ -189,7 +189,7 @@ answer rather than reproducing it exactly.
 
 **Without NVLink, TP=2 stops being the right topology.**
 
-At INT4 the model is ~35 GB - it fits comfortably on **one** A100. So the
+At INT4 the model is 39.8 GB - it fits comfortably on **one** A100. So the
 alternative is two independent single-GPU replicas behind a load balancer:
 
 | | TP=2 | 2× DP replicas |

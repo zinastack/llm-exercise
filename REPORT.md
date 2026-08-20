@@ -58,6 +58,30 @@ At roughly 320 KB of KV per token for this model's GQA layout, 19 GB is about
 recover headroom there, because KV headroom sets the concurrent batch size, and
 batch size sets throughput.
 
+**Where those numbers come from.** None of this is estimated - every term is read
+out of the model's own
+[`config.json`](https://huggingface.co/hugging-quants/Meta-Llama-3.1-70B-Instruct-AWQ-INT4/blob/main/config.json),
+which can be fetched before downloading a single weight:
+
+| `config.json` field | Value | Used as |
+|---|---:|---|
+| `num_hidden_layers` | 80 | layers that cache |
+| `num_key_value_heads` | **8** | GQA - 8× smaller than the 64 query heads |
+| `hidden_size` ÷ `num_attention_heads` | 8192 ÷ 64 = **128** | head dimension |
+| `max_position_embeddings` | **131072** | the default context that breaks §3 |
+| `rope_scaling.original_max_position_embeddings` | **8192** | the *pretrained* window |
+
+```
+80 layers × 8 KV heads × 128 dim × 2 (K,V) × 2 bytes = 327,680 B = 320 KB/token
+```
+
+The last row is why **`--max-model-len 8192` in §4 is not an arbitrary round
+number** - it is the context length this model was actually pretrained at.
+Everything above it is RoPE interpolation.
+
+Weight sizes come from `model.safetensors.index.json` → `metadata.total_size`,
+so they are exact rather than inferred from the parameter count.
+
 **A100 has no FP8 compute.** The obvious "quantize to FP8" lever available on
 Hopper and Ada does not exist here. That constrains which levers are real.
 
@@ -435,9 +459,15 @@ Two distinct mechanisms, both directly visible in the metrics collected here:
 **1 · It frees HBM, which becomes KV cache.**
 
 ```
-FP16 weights   ~141 GB   →   ~19 GB left for KV
-INT4 weights    ~35 GB   →   ~125 GB left for KV
+FP16 weights    141 GB   →   ~19 GB left for KV
+INT4 weights   39.8 GB   →  ~116 GB left for KV
 ```
+
+Both figures are `metadata.total_size` from each checkpoint's
+`model.safetensors.index.json`, not inferred from the parameter count. The INT4
+checkpoint is larger than a naive 70.55 B × 0.5 = 35 GB because **AWQ stores an
+FP16 scale and zero-point per group of 128 weights** - `group_size: 128` in its
+config. That works out to **4.51 effective bits per weight**.
 
 Roughly **six times the KV headroom**, which converts almost directly into
 concurrent sequences. In a decode-bound regime throughput is set by how many
@@ -530,7 +560,7 @@ does. A lightly loaded server barely notices; a saturated one loses a fifth of
 its throughput and doubles its tail latency.
 
 **What would change without NVLink - the architectural answer.** At INT4 the
-model is ~35 GB and fits on *one* A100. Two independent single-GPU replicas
+model is 39.8 GB and fits on *one* A100. Two independent single-GPU replicas
 behind a load balancer perform **zero** cross-GPU communication, and would beat
 TP=2 on aggregate throughput outright. Tensor parallelism buys lower
 single-request latency at the price of constant synchronisation; that price is
@@ -656,7 +686,7 @@ each be sized independently, at the cost of moving KV cache between them over
 the network, which then becomes the thing to measure.
 
 **Scale out rather than up, once the model fits on one device.** At INT4 this
-model is ~35 GB and fits on a single A100 - no tensor parallelism, and therefore
+model is 39.8 GB and fits on a single A100 - no tensor parallelism, and therefore
 **zero cross-GPU collectives**. The NVLink measurement in §6 quantifies exactly
 what that saves: at concurrency 256, disabling peer-to-peer cost 37% of
 throughput. Two independent replicas pay none of it.
